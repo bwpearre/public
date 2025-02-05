@@ -1,0 +1,662 @@
+{UTF-8}
+"∆ lifeminutes / day (pollution)"=
+	"initial ∆ lifeminutes / day (pollution)"
+	    * (1 - "Pr(µmobility)")
+	~	minute/Day [-10,0]
+	~		|
+
+"bike minutes / day"=
+	"Pr(bike)" * "transport minutes / day"
+	~	minute/Day
+	~		|
+
+"initial ∆ lifeminutes / day (pollution)"=
+	-2
+	~	minute/Day [-20,0,0.1]
+	~		|
+
+initial life expectancy=
+	80 * 365.25 * 24 * 60
+	~	minute
+	~		|
+
+"death risk / minute | bike"=
+	death risk * "speed(bike)" / 60
+	~	death / minute
+	~	(death risk / km) * (km / hr) / (60 hr / min) = death risk / min
+	|
+
+"∆ life minutes / day (collisions)"=
+	(mean age of victim - initial life expectancy) * "death risk / minute | bike"
+	* ("Pr(bike)" + "Pr(scooter)")
+	~	 [-10,0]
+	~		|
+
+"∆ life minutes / day"=
+	"∆ lifeminutes / day (activity)"
+	+ "∆ lifeminutes / day (pollution)"
+	+ "∆ life minutes / day (collisions)"
+	~	minute/Day
+	~	daily transport hours * "Pr(bike)" * bicycle activity time ROI * 60
+		         + "∆ life-minutes / day: collisions" 
+		          - "initial pollution life-minutes lost per average daily car transport \
+		hour"
+		 * car transport hours
+	|
+
+"∆ lifeminutes / day (activity)"=
+	"bike minutes / day" * active time ROI
+	~	
+	~		|
+
+mean age of victim=
+	35 * 365.25 * 24 * 60
+	~	minute
+	~		|
+
+active time ROI=
+	3
+	~	 [0,10,0.1]
+	~		|
+
+"transport minutes / day"=
+	40
+	~	minute/Day
+	~		|
+
+"Pr(deterred by risk | bike)"=
+	"Pr(deterred by risk)"
+	~	Prob [0,1]
+	~	1 - ( 1 - "initial Pr(deterred by risk   no access)" ) / risk increase factor ) 
+		+ ("risk perception adjustment: 0 = intuitive 1 = odds ratio") * \
+		"Pr(deterred by risk) from odds ratio"
+	|
+
+"Pr(deterred by risk | scooter)"=
+	"Pr(deterred by risk)"
+	~	Prob [0,1]
+	~		|
+
+"Pr(deterred by risk)"=
+	odds tmp / ( 1 + odds tmp )
+	~	
+	~	odds intermediate 
+		             / ( 1
+		                  + odds intermediate )
+	|
+
+"Desirability(scooter)"=
+	"speed(scooter)"
+	* (1 - "Pr(deterred by risk | scooter)")
+	* (1 - "Pr(deterred by infrastructure | scooter)")
+	* "capability(scooter)"
+	~	 [0,50]
+	~		|
+
+"freeflow speed(car)"=
+	20
+	~	km/h [1,50]
+	~		|
+
+initial death risk=
+	1 / 10^initial log10 km per death
+	~	1/km [0,1e-05]
+	~	Probability of fatal crash per km (European number from Buehler + Pucher \
+		2021)
+	|
+
+car slowdown factor=
+	1
+	+ ( car slowdown max - 1 )
+	   * ( 
+	       0 * "Pr(car)"
+	       + 1 * ("Pr(car)" ^ 9)
+	      )
+	~	
+	~	This equation is *very* ad-hoc. See anupriya2023 for data and analyses, \
+		giving ranges for a bunch of cities...
+	|
+
+car slowdown max=
+	1.4
+	~	Dmnl [1,5]
+	~		|
+
+car speed perception shift=
+	("speed(car)" - "perceived speed(car)") * 0.01
+	~	
+	~		|
+
+"Desirability(bike)"=
+	"speed(bike)"
+	* (1 - "Pr(deterred by risk | bike)")
+	* (1 - "Pr(deterred by infrastructure | bike)")
+	* "capability(bike)"
+	~	 [0,50]
+	~		|
+
+"Desirability(car)"=
+	"perceived speed(car)"
+	* (1 - "Pr(deterred by risk | car)")
+	* (1 - "Pr(deterred by infrastructure | car)")
+	* "capability(car)"
+	~	 [0,50]
+	~	Pr(not deterred by risk) = 1
+		Pr(not deterred by inconvenience) = policy intervention
+		Pr(could be done by car) = 1
+	|
+
+"perceived speed(car)"= INTEG (
+	car speed perception shift,
+		"freeflow speed(car)")
+	~	km/h [1,100]
+	~		|
+
+initial log10 km per death=
+	8
+	~	Dmnl [7,10,0.25]
+	~	Europe: 100 million km per bike death. USA: 15 million km per bike death.
+	|
+
+"speed(car)"=
+	"freeflow speed(car)" / car slowdown factor
+	~	km/h [1,50]
+	~	Pr(car) = 0: time multiplier = 1
+		Pr(car) = 1: time multiplier 1.5
+		Probably shouldn't be very nonlinear slowdown until Pr(car) gets near 0.8 \
+		or so... but this isn't really meant to be a car traffic congestion model, \
+		is it?
+	|
+
+"speed(scooter)"=
+	15
+	~	km/h [1,50,0.1]
+	~		|
+
+"speed(bike)"=
+	15
+	~	km/h [1,50,0.1]
+	~		|
+
+"Pr(deterred by infrastructure | scooter)"=
+	IF THEN ELSE ( Time > scootershare introduced , 
+	              1 - µmobility infrastructure, 
+	              1)
+	~	Prob [0,1]
+	~	No scooters yet, so set to 1
+	|
+
+scootershare introduced=
+	1000
+	~	 [1,10000,10]
+	~		|
+
+odds tmp=
+	risk odds ratio
+	* ( "initial Pr(deterred by risk | bike)" / (1 - "initial Pr(deterred by risk | bike)"\
+		 ))
+	~	
+	~	This is an intermediate value in the odds ratio computation.
+	|
+
+"Pr(deterred by infrastructure | bike)"=
+	1 - µmobility infrastructure
+	~	Prob [0,1]
+	~		|
+
+death risk=
+	initial death risk * sin risk factor
+	~	1/km
+	~		|
+
+crash risk perception adjustment rate=
+	0.01
+	~	 [0,1,0.001]
+	~		|
+
+perceived risk adjustment=
+	( death risk - perceived death risk ) * crash risk perception adjustment rate
+	~	
+	~		|
+
+µmobility infrastructure investment=
+	(1 - µmobility infrastructure) * "Pr(µmobility)" * µmobility infrastructure investment responsiveness
+	~	
+	~		|
+
+µmobility infrastructure investment responsiveness=
+	0.0003
+	~	 [0,0.005,0.0001]
+	~	No idea what the units should be! $ / observed user, probably, but need a \
+		nonlinearity somewhere...
+	|
+
+µmobility infrastructure decay rate=
+	2e-05
+	~	 [0,0.01,0.0001]
+	~	Units?!?!
+	|
+
+"initial Pr(deterred by risk | bike)"=
+	0.7
+	~	Prob [0,1]
+	~		|
+
+initial µmobility infrastructure=
+	0.4
+	~	Prob [0,1,0.01]
+	~	Probabiliy that a given trip can comfortably be done with bike or scooter.
+	|
+
+perceived death risk= INTEG (
+	perceived risk adjustment,
+		initial death risk)
+	~	1/km
+	~		|
+
+risk odds ratio=
+	( perceived death risk 
+	             / ( 1 - perceived death risk ) ) 
+	/ ( initial death risk 
+	             / ( 1 - initial death risk ) )
+	~	Dmnl
+	~		|
+
+µmobility infrastructure= INTEG (
+	µmobility infrastructure investment-µmobility infrastructure decay,
+		initial µmobility infrastructure)
+	~	Prob [0.001,1]
+	~	What proportion of trips are *convenient* by µmobility?
+	|
+
+µmobility infrastructure decay=
+	µmobility infrastructure * µmobility infrastructure decay rate
+	~	
+	~		|
+
+"capability(bike)"=
+	0.9
+	~	Prob [0,1]
+	~	What fraction of trips that are done by car could be done by bike? This \
+		could depend on things like terrain, availability of racks, cargobikes, \
+		suspension...? Inasmuch as we're talking bikeshare, this should be \
+		adjustable: racks could be added.
+	|
+
+"capability(car)"=
+	1
+	~	Prob [0,1]
+	~		|
+
+"capability(scooter)"=
+	0.5
+	~	Prob [0,1]
+	~	What fraction of car trips could be done by scooter? They can't carry kids \
+		or groceries, but can carry one lightly loaded person.
+	|
+
+"initial Pr(bike)"=
+	INITIAL ("Pr(bike)")
+	~	Prob [0.01,1]
+	~		|
+
+"Pr(bike)"=
+	"Desirability(bike)" / ("Desirability(car)" + "Desirability(bike)" + "Desirability(scooter)"\
+		)
+	~	Prob [0,1]
+	~		|
+
+"Pr(car)"=
+	"Desirability(car)" / ("Desirability(car)" + "Desirability(bike)" + "Desirability(scooter)"\
+		)
+	~	Prob [0,1]
+	~		|
+
+"Pr(deterred by infrastructure | car)"=
+	0.1
+	~	Prob [0,1,0.01]
+	~	Let's start this out at 0? Interventions such as restricting downtown \
+		parking could increase this.
+	|
+
+"Pr(deterred by risk | car)"=
+	0
+	~	Prob [0,1]
+	~	Cars are dangerous! But nobody thinks about that, because they *feel* safe \
+		:(
+	|
+
+"Pr(scooter)"=
+	"Desirability(scooter)" / ("Desirability(car)" + "Desirability(bike)" + "Desirability(scooter)"\
+		)
+	~	Prob [0,1]
+	~		|
+
+"Pr(µmobility)"=
+	"Pr(bike)" + "Pr(scooter)"
+	~	Prob [0,1]
+	~		|
+
+sin risk factor=
+	("Pr(µmobility)" / "initial Pr(bike)") ^ (ß - 1)
+	~	Dmnl [0,?]
+	~		|
+
+ß=
+	0.3
+	~	 [-0.5,1,0.01]
+	~		|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 5000
+	~	Day
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Day
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 
+        TIME STEP
+	~	Day [0,?]
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 1
+	~	Day [0,?]
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Mode choice
+$-1--1--1,0,|14||-1--1--1|-1--1--1|-1--1--1|-1--1--1|-1--1--1|96,96,82,2
+10,1,"Desirability(car)",1031,73,70,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,2,"Desirability(bike)",1031,218,70,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,3,"Desirability(scooter)",1031,373,70,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,4,"Pr(deterred by risk | bike)",782,193,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,5,"Pr(deterred by risk | scooter)",782,426,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,6,"Pr(deterred by infrastructure | bike)",782,240,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,7,"Pr(deterred by infrastructure | scooter)",782,472,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,8,"Pr(deterred by infrastructure | car)",782,7,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,9,"Pr(deterred by risk | car)",782,-39,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,10,9,1,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,11,8,1,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,12,4,2,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,13,6,2,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,14,5,3,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,15,7,3,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,16,"capability(car)",782,-85,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,17,"capability(bike)",782,147,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,18,"capability(scooter)",782,380,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,19,16,1,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,20,17,2,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,21,18,3,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,22,"Pr(car)",1188,73,42,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,23,1,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,24,2,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,25,3,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,26,"Pr(bike)",1188,218,46,16,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,27,"Pr(scooter)",1188,373,42,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,28,1,26,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,29,2,26,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,30,3,26,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,31,3,27,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,32,2,27,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,33,1,27,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,34,"initial Pr(deterred by risk | bike)",1710,619,55,27,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,35,"Pr(µmobility)",1323,256,46,16,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,36,26,35,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,37,27,35,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,38,ß,1453,151,17,11,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,39,sin risk factor,1452,218,54,12,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,40,38,39,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,41,35,39,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,42,"initial Pr(bike)",1323,178,46,16,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,43,26,42,0,0,0,0,0,192,1,-1--1--1,,1|(0,0)|
+1,44,42,39,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,45,risk odds ratio,1782,425,54,12,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,46,death risk,1543,261,54,12,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,47,initial death risk,1543,366,54,12,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,48,39,46,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,49,47,46,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,50,47,45,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,51,µmobility infrastructure,1468,525,43,22,3,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,52,48,1210,520,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,53,55,52,100,0,0,22,0,192,0,-1--1--1,,1|(1268,520)|
+1,54,55,51,4,0,0,22,0,192,0,-1--1--1,,1|(1376,520)|
+11,55,0,1322,520,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,56,µmobility infrastructure investment,1322,554,43,26,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,57,35,55,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,58,µmobility infrastructure investment responsiveness,1217,445,73,26,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,59,58,55,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,60,0,1188,-90,49,122,3,7,0,19,-1,1,0,0,17-128-2,0-0-0,||I|17-128-2,0,0,0,0,0,0
+For now, these three sum to 1. This ignores induced demand and latent demand from people who can't drive: as µmobility gets better, the mobile population increases.
+12,61,48,1691,525,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,62,64,51,100,0,0,22,0,192,0,-1--1--1,,1|(1547,525)|
+1,63,64,61,4,0,0,22,0,192,0,-1--1--1,,1|(1638,525)|
+11,64,0,1590,525,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,65,µmobility infrastructure decay,1590,559,43,26,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,66,µmobility infrastructure decay rate,1540,447,43,26,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,67,66,64,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,68,51,64,1,0,0,0,0,192,0,-1--1--1,,1|(1516,496)|
+1,69,51,55,1,0,0,0,0,192,0,-1--1--1,,1|(1389,488)|
+12,70,0,1030,-132,69,80,3,7,0,19,-1,1,0,0,64-128-2,0-0-0,||I|17-128-2,0,0,0,0,0,0
+Each mode m's desirability is Pr(trip could be done by m) * Pr(not deterred by risk) * Pr(not deterred by infrastructure) * speed
+10,71,initial µmobility infrastructure,1441,421,48,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,72,71,51,0,0,0,0,0,192,1,-1--1--1,,1|(0,0)|
+10,73,µmobility infrastructure,544,346,93,14,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,74,73,7,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,75,73,6,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,76,perceived death risk,1727,325,71,16,3,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,77,48,1722,206,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,78,80,77,100,0,0,22,0,192,0,-1--1--1,,1|(1722,235)|
+1,79,80,76,4,0,0,22,0,192,0,-1--1--1,,1|(1722,288)|
+11,80,0,1722,261,8,6,33,3,0,0,4,0,0,0,0,0,0,0,0,0
+10,81,perceived risk adjustment,1775,261,45,22,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,82,46,80,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,83,crash risk perception adjustment rate,1612,202,52,26,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,84,83,80,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,85,76,80,1,0,0,0,0,192,0,-1--1--1,,1|(1696,291)|
+1,86,47,76,0,0,0,0,0,192,1,-1--1--1,,1|(0,0)|
+1,87,76,45,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,88,0,1034,756,192,164,8,15,0,0,1,0,0,0,0,0,0,0,0,0
+modes
+12,89,0,2020,147,152,114,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+perceived death risk,Graph
+10,90,odds tmp,1776,708,34,13,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,91,45,90,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,92,34,90,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,93,scootershare introduced,702,520,89,11,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,94,93,7,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,95,Time,866,519,26,10,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,96,95,7,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,97,0,2020,869,152,114,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+µmobility infrastructure,Graph
+10,98,"speed(car)",1520,78,42,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,99,"speed(bike)",782,101,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,100,"speed(scooter)",782,334,128,10,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,101,"perceived speed(car)",1644,9,42,22,3,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,102,48,1639,120,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,103,105,102,100,0,0,22,0,192,0,-1--1--1,,1|(1639,99)|
+1,104,105,101,4,0,0,22,0,192,0,-1--1--1,,1|(1639,53)|
+11,105,0,1639,80,8,6,33,3,0,0,4,0,0,0,0,0,0,0,0,0
+10,106,car speed perception shift,1697,80,50,22,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,107,101,105,1,0,0,0,0,192,0,-1--1--1,,1|(1602,58)|
+1,108,98,105,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,109,"perceived speed(car)",544,48,93,12,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,110,car slowdown factor,1351,75,45,22,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,111,22,110,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,112,110,98,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,113,car slowdown max,1322,-19,46,17,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,114,113,110,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,115,100,3,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,116,99,2,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,117,109,1,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,118,"freeflow speed(car)",1492,-3,64,13,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,119,118,98,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,120,0,782,54,14,11,8,3,0,0,-1,1,0,0,0,0,0,0,0,0
+12,121,0,782,287,14,11,8,3,0,0,-1,1,0,0,0,0,0,0,0,0
+12,122,0,2020,-95,152,114,8,15,0,0,1,0,0,0,0,0,0,0,0,0
+car_speed_vs_µmobility
+12,123,0,544,-167,93,45,3,7,0,19,-1,1,0,0,17-128-2,0-0-0,||I|17-128-2,0,0,0,0,0,0
+Feedback loops re-enter in this column.
+12,124,0,782,-167,128,45,3,7,0,19,-1,1,0,0,17-128-2,0-0-0,||I|17-128-2,0,0,0,0,0,0
+Factors contributing to desirability of the different modes
+12,125,0,1519,-167,259,45,3,7,0,3,-1,1,0,0,17-128-2,0-0-0,|||17-128-2,0,0,0,0,0,0
+Calculators: for cars, traffic-induced slowdown. For µmobility, safety and infrastructure.
+12,126,0,2020,387,152,114,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+"Pr(deterred by risk | bike)",Graph
+10,127,initial log10 km per death,1436,304,80,14,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,128,127,47,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,129,118,101,0,0,0,0,0,192,1,-1--1--1,,1|(0,0)|
+10,130,"Pr(deterred by risk)",1763,805,62,15,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,131,90,130,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,132,"Pr(deterred by risk)",544,226,93,14,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,133,132,4,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,134,132,5,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,135,0,643,756,192,164,8,15,0,0,1,0,0,0,0,0,0,0,0,0
+desirability
+12,136,0,2020,627,152,114,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+"Pr(bike)",Graph
+12,137,0,1423,756,192,164,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+"∆ life minutes / day",Graph
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Health
+$-1--1--1,0,|14||-1--1--1|-1--1--1|-1--1--1|-1--1--1|-1--1--1|96,96,100,2
+10,1,"transport minutes / day",282,357,80,11,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,2,active time ROI,460,421,59,13,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,3,"∆ life minutes / day",981,399,74,14,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,4,"bike minutes / day",487,332,66,11,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,5,"initial ∆ lifeminutes / day (pollution)",367,177,120,14,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,6,"∆ lifeminutes / day (pollution)",711,285,96,15,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,7,5,6,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,8,4,31,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,9,2,31,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,10,"Pr(bike)",320,301,35,10,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,11,10,4,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,12,1,4,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,13,6,3,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,14,0,1381,252,300,200,0,15,0,0,2,0,0,0,0,0,0,0,0,0
+"∆ life minutes / day",Graph
+10,15,death risk,158,485,41,10,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,16,"speed(bike)",160,562,47,10,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,17,"death risk / minute | bike",329,526,82,15,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,18,15,17,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,19,16,17,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,20,initial life expectancy,335,583,72,14,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,21,mean age of victim,327,644,68,13,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,22,"∆ life minutes / day (collisions)",711,514,96,15,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,23,21,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,24,20,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,25,17,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,26,22,3,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,27,"Pr(bike)",650,646,35,10,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,28,"Pr(scooter)",515,644,45,10,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,29,28,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,30,27,22,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,31,"∆ lifeminutes / day (activity)",711,399,96,15,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,32,31,3,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+10,33,"Pr(µmobility)",471,264,50,10,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,34,33,6,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,35,0,1382,666,300,200,0,15,0,0,1,0,0,0,0,0,0,0,0,0
+∆_life-minutes_/_day
+///---\\\
+:GRAPH modes
+:TITLE modeshare
+:X-AXIS Time
+:SCALE
+:VAR "Pr(bike)"
+:DATASET 
+:LINE-WIDTH 1
+:VAR "Pr(car)"
+:DATASET 
+:LINE-WIDTH 1
+:VAR "Pr(scooter)"
+:DATASET 
+:LINE-WIDTH 1
+
+:GRAPH car_speed_vs_µmobility
+:TITLE car speed vs traffic volume
+:X-AXIS "Pr(car)"
+:X-MIN 0
+:X-MAX 1
+:SCALE
+:VAR "speed(car)"
+:Y-MIN 0
+:Y-MAX 31
+:DATASET 
+:LINE-WIDTH 1
+
+:GRAPH desirability
+:TITLE desirability
+:X-AXIS Time
+:SCALE
+:VAR "Desirability(bike)"
+:DATASET 
+:LINE-WIDTH 1
+:VAR "Desirability(car)"
+:DATASET 
+:LINE-WIDTH 1
+:VAR "Desirability(scooter)"
+:DATASET 
+:LINE-WIDTH 1
+
+:GRAPH ∆_life-minutes_/_day
+:TITLE ∆ life-minutes / day by factor
+:X-AXIS Time
+:SCALE
+:VAR "∆ life minutes / day"
+:DATASET 
+:LINE-WIDTH 1
+:VAR "∆ lifeminutes / day (activity)"
+:DATASET 
+:LINE-WIDTH 1
+:VAR "∆ life minutes / day (collisions)"
+:DATASET 
+:LINE-WIDTH 1
+:VAR "∆ lifeminutes / day (pollution)"
+:DATASET 
+:LINE-WIDTH 1
+:L<%^E!@
+1:scooters at 1000.vdfx
+1:no scooters.vdfx
+4:Time
+5:active time ROI
+9:no scooters
+19:82,0
+24:0
+25:5000
+26:5000
+23:0
+15:0,0,0,1,0,0
+27:0,
+34:0,
+42:0
+72:0
+73:0
+95:0
+96:0
+97:0
+77:0
+78:0
+102:1
+93:0
+94:0
+92:0
+91:0
+90:0
+87:0
+75:
+43:
+103:8,8,8,3,8
+105:0,0,0,0,0,0,0,0,0,0
+104:Arial|14||0-0-0|0-0-0|-1--1--1|0-0-255|192-192-192|-1--1--1
